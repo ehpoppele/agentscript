@@ -6,6 +6,7 @@ import Model from '../src/Model.js'
 import util from '../src/util.js'
 import DataSet from '../src/DataSet.js'
 
+
 export default class FloodModel extends Model {
     static defaults() {
         return {
@@ -154,7 +155,7 @@ export default class FloodModel extends Model {
 
 //---------------------------------------------
     step(age) {
-      console.log('test1')
+      console.log('step')
       if (age === 4000) console.log(`Done Raining`)
       if (age < 4000){
         this.patches.ask(p => {
@@ -196,9 +197,8 @@ export default class FloodModel extends Model {
         }
       })
 
-      //If can't move, check if at edge and then edgeRunoff
-      console.log('test')
-      if(canMove === false && (p.x===this.world.MinX || p.x===this.world.MaxX || p.y===this.world.MinY || p.y===this.world.MaxY)){
+      // If can't move, check if at edge and then edgeRunoff
+      if(this.edgeRunoff === true && (p.x === this.world.minX || p.x === this.world.maxX || p.y === this.world.minY || p.y === this.world.maxY)){
         console.log('edge Runoff Occuring')
         p.height -= 1
         p.graphElev = p.height
