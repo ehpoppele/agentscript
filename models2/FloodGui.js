@@ -11,7 +11,7 @@ util.toWindow({ Color, ColorMap, Animator, GUI, TwoView, FloodModel, util })
 const template = {
     rainfallRate: { value: 10, extent: [0, 25, 1] },
     patchSize: { value: 12, extent: [1, 20, 1] },
-    //edgeRunoff: { value: }
+    edgeRunoff: { value: false},
     run: { value: () => anim.toggle() },
 }
 const controls = new GUI(template).target
@@ -19,7 +19,7 @@ const controls = new GUI(template).target
 class FloodModelCtrl extends FloodModel {
     step() {
         this.rainfall = controls.rainfallRate
-        //this.edgeRunoff = controls.edgeRunoff
+        this.edgeRunoff = controls.edgeRunoff
         super.step()
       }
   }
@@ -31,9 +31,9 @@ class FloodModelCtrl extends FloodModel {
       steps: 500,
       rainfall: 10,
       intialWater: 40,
-      modelZ: '13',
-      modelX: '1686',
-      modelY: '3229',
+      modelZ: '12',
+      modelX: '843',
+      modelY: '1614',
       edgeRunoff: false,
   }
 
@@ -41,7 +41,7 @@ class FloodModelCtrl extends FloodModel {
 
   const patchPixels = {
       rock: [1, 0.66, 0.33],
-      water: [0, 0, 1],
+      water: [0, 0.5, 1],
   }
 
   Object.assign(params, util.parseQueryString())

@@ -154,8 +154,7 @@ export default class FloodModel extends Model {
       }
 
 //---------------------------------------------
-    step(age) {
-      console.log('step')
+    step(age=0) {
       if (age === 4000) console.log(`Done Raining`)
       if (age < 4000){
         this.patches.ask(p => {
@@ -171,7 +170,7 @@ export default class FloodModel extends Model {
           if(p.type != this.waterType){
             p.type = this.waterType
             p.setBreed(this.waters)
-            p.graphElev = p.height
+            p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.height)/(this.maxHeight - this.minHeight)) //p.graphElev = p.height
           }
           if(p.type === this.waterType){
             p.height += 1
@@ -199,9 +198,8 @@ export default class FloodModel extends Model {
 
       // If can't move, check if at edge and then edgeRunoff
       if(this.edgeRunoff === true && (p.x === this.world.minX || p.x === this.world.maxX || p.y === this.world.minY || p.y === this.world.maxY)){
-        console.log('edge Runoff Occuring')
         p.height -= 1
-        p.graphElev = p.height
+        p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.height)/(this.maxHeight - this.minHeight)) //p.graphElev += 1 //p.height
         if (p.height <= 0) {
           p.type = this.rockType
           p.setBreed(this.rocks)
@@ -214,7 +212,7 @@ export default class FloodModel extends Model {
 
         //move
         p.height -= 1
-        p.graphElev = p.height
+        p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.height)/(this.maxHeight - this.minHeight)) //p.graphElev += 1 //p.height
         if (p.height <= 0) {
           p.type = this.rockType
           p.setBreed(this.rocks)
@@ -225,7 +223,7 @@ export default class FloodModel extends Model {
         if (next[choice].type != this.waterType) {
           next[choice].type = this.waterType
           next[choice].setBreed(this.waters)
-          next[choice].graphElev = next[choice].height
+          next[choice].graphElev= Math.floor(255*(next[choice].elevation-this.minHeight + next[choice].height)/(this.maxHeight - this.minHeight)) //next[choice].graphElev += 1 // next[choice].height
         }
 
         //update
