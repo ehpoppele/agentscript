@@ -155,8 +155,13 @@ export default class FloodModel extends Model {
 
 //---------------------------------------------
     step(age=0) {
-      if (age === 4000) console.log(`Done Raining`)
-      if (age < 4000){
+      if (age === 400) {
+        console.log(`Done Raining`)
+        this.patches.ask(p => {
+          console.log(p.height)
+        })
+      }
+      if (age < 400){
         this.patches.ask(p => {
           if (util.randomInt(1000)<this.rainfall) this.addWater(p)
         })
@@ -180,23 +185,7 @@ export default class FloodModel extends Model {
 
 
     flow(p) {
-      //initial vars
-      var canMove = false
-      var next = []
 
-      //update movement possibilities
-      p.neighbors.ask ( n => {
-        if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
-          canMove = true
-          next.push(n)
-        }
-        if (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation)){
-          canMove = true
-          next.push(n)
-        }
-      })
-
-      // If can't move, check if at edge and then edgeRunoff
       if(this.edgeRunoff === true && (p.x === this.world.minX || p.x === this.world.maxX || p.y === this.world.minY || p.y === this.world.maxY)){
         p.height -= 1
         p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.height)/(this.maxHeight - this.minHeight)) //p.graphElev += 1 //p.height
@@ -207,42 +196,25 @@ export default class FloodModel extends Model {
         }
       }
 
-      //move as long as possible
-      while (canMove && p.type === this.waterType) {
+      var options = 0
+      var count = 0
+      var found = null
 
-        //move
-        p.height -= 1
-        p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.height)/(this.maxHeight - this.minHeight)) //p.graphElev += 1 //p.height
-        if (p.height <= 0) {
-          p.type = this.rockType
-          p.setBreed(this.rocks)
-          p.graphElev = Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
+      p.neighbors.ask ( n => {
+        if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
+          options ++
         }
-        var choice = util.randomInt(next.length)
-        next[choice].height += 1
-        if (next[choice].type != this.waterType) {
-          next[choice].type = this.waterType
-          next[choice].setBreed(this.waters)
-          next[choice].graphElev= Math.floor(255*(next[choice].elevation-this.minHeight + next[choice].height)/(this.maxHeight - this.minHeight)) //next[choice].graphElev += 1 // next[choice].height
+      })
+      p.neighbors.ask ( n => {
+        if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
+          if (util.randomInt(options - count) = 0){
+            found = n
+          }
+          count++
         }
+      })
 
-        //update
-        canMove = false
-        next = []
 
-        p.neighbors.ask ( n => {
-          if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
-            canMove = true
-            next.push(n)
-          }
-          if (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation)){
-            canMove = true
-            next.push(n)
-
-          }
-        })
-
-      }
     }
 
 
@@ -291,3 +263,60 @@ rgb2Number(rgb) {
 
 
 }
+
+/*
+//initial vars
+var canMove = false
+var next = []
+
+//update movement possibilities
+p.neighbors.ask ( n => {
+  if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
+    canMove = true
+    next.push(n)
+  }
+  if (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation)){
+    canMove = true
+    next.push(n)
+  }
+})
+
+
+
+//move as long as possible
+while (canMove && p.type === this.waterType) {
+
+  //move
+  p.height -= 1
+  p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.height)/(this.maxHeight - this.minHeight)) //p.graphElev += 1 //p.height
+  if (p.height <= 0) {
+    p.type = this.rockType
+    p.setBreed(this.rocks)
+    p.graphElev = Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
+  }
+  var choice = util.randomInt(next.length)
+  next[choice].height += 1
+  if (next[choice].type != this.waterType) {
+    next[choice].type = this.waterType
+    next[choice].setBreed(this.waters)
+    next[choice].graphElev= Math.floor(255*(next[choice].elevation-this.minHeight + next[choice].height)/(this.maxHeight - this.minHeight)) //next[choice].graphElev += 1 // next[choice].height
+  }
+
+  //update
+  canMove = false
+  next = []
+
+  p.neighbors.ask ( n => {
+    if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
+      canMove = true
+      next.push(n)
+    }
+    if (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation)){
+      canMove = true
+      next.push(n)
+
+    }
+  })
+
+}
+*/
