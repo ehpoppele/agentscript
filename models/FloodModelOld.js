@@ -1,3 +1,7 @@
+//Notes on the model:
+//Elevation is for the landscape and doesn't change
+//height is height of the water above said elevation
+
 import Model from '../src/Model.js'
 import util from '../src/util.js'
 import DataSet from '../src/DataSet.js'
@@ -7,11 +11,14 @@ export default class FloodModel extends Model {
     static defaults() {
         return {
             worldSize: 30,
+            initialWater: 6, //cubic units
             imageURL:"https://s3-us-west-2.amazonaws.com/world-elevation-tiles/DEM_tiles/13/1686/3229.png",
-            rainfall: 10, //mm of rain per hour
-            edgeRunoff: true, //whether water runs off the edge of the map, treating the "offscreen pixels" as lower elevation
+            //imageURL: "https://s3-us-west-2.amazonaws.com/world-elevation-tiles/DEM_tiles/11/422/805.png",
+            rainfall: 10,
+            edgeRunoff: false,
         }
     }
+
 
     constructor(worldDptions) {
         super(worldDptions)
@@ -42,7 +49,6 @@ export default class FloodModel extends Model {
         this.patches.ask(p => {
           p.elevation = 0
           p.height = 0
-          p.waterAccumulated = 0
           p.type = this.rockType
           p.setBreed(this.rocks)
         })
@@ -157,12 +163,7 @@ export default class FloodModel extends Model {
       }
       if (age < 400){
         this.patches.ask(p => {
-          p.waterAccumulated += this.rainfall
-          if (p.waterAccumulated >= 100) {
-            this.addWater(p)
-            p.waterAccumulated = 0
-          }
-          //if (util.randomInt(1000)<this.rainfall) this.addWater(p)
+          if (util.randomInt(1000)<this.rainfall) this.addWater(p)
         })
       }
       this.waters.ask( w => {
@@ -195,27 +196,26 @@ export default class FloodModel extends Model {
         }
       }
 
-      var options = 0
-      var count = 0
-      var found = null
+      //initial vars
+      var canMove = false
+      var next = []
 
+      //update movement possibilities
       p.neighbors.ask ( n => {
-        if ((n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)) || (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation))){
-          options ++
+        if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
+          canMove = true
+          next.push(n)
+        }
+        if (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation)){
+          canMove = true
+          next.push(n)
         }
       })
-      p.neighbors.ask ( n => {
-        if ((n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)) || (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation))){
-          if (found === null && util.randomInt(options - count) === 0){
-            found = n
-          }
-          count++
-        }
-      })
+
+
 
       //move as long as possible
-      while (found != null && p.type === this.waterType) {
-        //console.log(found)
+      while (canMove && p.type === this.waterType) {
 
         //move
         p.height -= 1
@@ -225,33 +225,34 @@ export default class FloodModel extends Model {
           p.setBreed(this.rocks)
           p.graphElev = Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
         }
-        found.height += 1
-        if (found.type != this.waterType) {
-          found.type = this.waterType
-          found.setBreed(this.waters)
-          found.graphElev= Math.floor(255*(found.elevation-this.minHeight + found.height)/(this.maxHeight - this.minHeight)) //next[choice].graphElev += 1 // next[choice].height
+        var choice = util.randomInt(next.length)
+        next[choice].height += 1
+        if (next[choice].type != this.waterType) {
+          next[choice].type = this.waterType
+          next[choice].setBreed(this.waters)
+          next[choice].graphElev= Math.floor(255*(next[choice].elevation-this.minHeight + next[choice].height)/(this.maxHeight - this.minHeight)) //next[choice].graphElev += 1 // next[choice].height
         }
 
         //update
-        var options = 0
-        var count = 0
-        var found = null
+        canMove = false
+        next = []
 
         p.neighbors.ask ( n => {
           if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
-            options ++
+            canMove = true
+            next.push(n)
           }
-        })
-        p.neighbors.ask ( n => {
-          if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
-            if (found === null && util.randomInt(options - count) === 0){
-              found = n
-            }
-            count++
+          if (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation)){
+            canMove = true
+            next.push(n)
+
           }
         })
 
       }
+
+
+
     }
 
 
@@ -300,3 +301,69 @@ rgb2Number(rgb) {
 
 
 }
+
+/*
+
+
+
+
+
+
+var options = 0
+var count = 0
+var found = null
+
+p.neighbors.ask ( n => {
+  if ((n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)) || (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation))){
+    options ++
+  }
+})
+p.neighbors.ask ( n => {
+  if ((n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)) || (n.type === this.rockType && (n.height + n.elevation + 1) < (p.height + p.elevation))){
+    if (found === null && util.randomInt(options - count) === 0){
+      found = n
+    }
+    count++
+  }
+})
+
+//move as long as possible
+while (found != null && p.type === this.waterType) {
+  //console.log(found)
+
+  //move
+  p.height -= 1
+  p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.height)/(this.maxHeight - this.minHeight)) //p.graphElev += 1 //p.height
+  if (p.height <= 0) {
+    p.type = this.rockType
+    p.setBreed(this.rocks)
+    p.graphElev = Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
+  }
+  found.height += 1
+  if (found.type != this.waterType) {
+    found.type = this.waterType
+    found.setBreed(this.waters)
+    found.graphElev= Math.floor(255*(found.elevation-this.minHeight + found.height)/(this.maxHeight - this.minHeight)) //next[choice].graphElev += 1 // next[choice].height
+  }
+
+  //update
+  var options = 0
+  var count = 0
+  var found = null
+
+  p.neighbors.ask ( n => {
+    if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
+      options ++
+    }
+  })
+  p.neighbors.ask ( n => {
+    if (n.type === this.waterType && (n.height + n.elevation) < (p.height + p.elevation)){
+      if (found === null && util.randomInt(options - count) === 0){
+        found = n
+      }
+      count++
+    }
+  })
+
+}
+*/
