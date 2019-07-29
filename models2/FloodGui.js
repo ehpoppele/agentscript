@@ -9,7 +9,7 @@ import util from '../src/util.js'
 util.toWindow({ Color, ColorMap, Animator, GUI, TwoView, FloodModel, util })
 
 const template = {
-    rainfallRate: { value: 10, extent: [0, 25, 1] },
+    rainfallRate: { value: 0, extent: [0, 25, 1] },
     patchSize: { value: 12, extent: [1, 20, 1] },
     edgeRunoff: { value: false},
     run: { value: () => anim.toggle() },
@@ -41,7 +41,8 @@ class FloodModelCtrl extends FloodModel {
 
   const patchPixels = {
       rock: [1, 0.66, 0.33],
-      water: [0, 0.5, 1],
+      rainWater: [1, 0.66, 0.33],
+      floodWater: [0, 0.5, 1],
   }
 
   Object.assign(params, util.parseQueryString())
