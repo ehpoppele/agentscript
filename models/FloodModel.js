@@ -1,15 +1,23 @@
 import Model from '../src/Model.js'
 import util from '../src/util.js'
 import DataSet from '../src/DataSet.js'
-
+import * as Map from './TopoMap.js'
 
 export default class FloodModel extends Model {
     static defaults() {
         return {
+            age: 0, //Tracks time; elapsed time = (age/timeScale) minutes
             worldSize: 30,
             imageURL:"https://s3-us-west-2.amazonaws.com/world-elevation-tiles/DEM_tiles/13/1686/3229.png",
             rainfall: 10, //mm of rain per hour
             edgeRunoff: true, //whether water runs off the edge of the map, treating the "offscreen pixels" as lower elevation
+            timeScale: 2,//number of steps between rainfalls; time to flow one patch is 1 min / timeScale.
+            //For accuracy on time scale, it should be set to:
+            //patch size = k /(zoom * world Size), where mapSideLength(m) = k/zoom
+            // waterrate = timescale * patch size/60s
+            //timeScale = waterRate * 60 * zoom * worldSize/ (k)
+            //for standard zoom 12, worldsize 70, this is:
+            //timescale = 3 m/s * 60 * 12 * 70 /(7500 * 12)
         }
     }
 
@@ -18,17 +26,19 @@ export default class FloodModel extends Model {
         Object.assign(this, FloodModel.defaults())
     }
 
+    //Loads up map based on lat/long squares and given coords
     async startup(){
       let img = await fetch(this.imageURL)
       let imgBlob = await img.blob()
       let i = await createImageBitmap(imgBlob)
-      let imageMap = this.getImageData(i, 0, 0, 256, 256)
+      let imageMap = Map.getImageData(i, 0, 0, 256, 256)
       return new Promise( (resolve, reject) => {
-        this.imageArray = this.extractRGBArray(imageMap)
+        this.imageArray = Map.extractRGBArray(imageMap, 0, 1, this.worldSize)
       resolve(this.imageArray)
       })
     }
 
+    //draws terrain based on map and assigns properties
     setup() {
         this.patchBreeds('waters rocks')
 
@@ -48,43 +58,6 @@ export default class FloodModel extends Model {
           p.type = this.rockType
           p.setBreed(this.rocks)
         })
-
-
-        //Setup Canyon Terrain
-        /*
-        this.patches.ask(p => {
-          p.elevation =  Math.floor(250*(Math.abs(p.x - p.y)/(2*this.worldSize)))
-          if (p.elevation < 30) p.elevation = 5
-          p.graphElev = p.elevation
-        })
-        */
-
-
-
-        //One Large Hill------------------------------------------
-        /*
-        this.patches.ask(p => {
-          p.elevation = Math.floor(210 - Math.hypot(p.x, p.y)) //25-|dist from origin |
-          if (p.elevation < 0) p.elevation = 0
-          p.graphElev = p.elevation
-        })
-        */
-
-        //Random Mountains and Valleys
-
-
-        /*
-        this.patches.ask(p => {
-          if (util.randomInt(1000) === 314){
-              p.elevation+=50
-              p.neighbors.ask(n => {
-                if (util.randomInt(4) === 1) p.elevation +=50
-              })
-          }
-        })
-        */
-
-
 
         //ImageTile Setup
         var heightDataSet = new DataSet(256, 256, this.imageArray)
@@ -110,52 +83,34 @@ export default class FloodModel extends Model {
 
         //now do the scaling work
         this.patches.ask(p => {
-          p.graphElev= Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
+          p.graphElev= this.rockGraphic(p.elevation)
         })
-
-
-
-
-
-
-
-
-        //setup initial water
-        /*
-        this.patches.ask(p => {
-          if (p.graphElev > 200){
-            p.type = this.waterType
-            p.setBreed(this.waters)
-            p.height += this.initialWater
-            p.graphElev = p.height
-          }
-        })
-        */
-
-        /*
-        this.patches.ask( p=> {
-          if (p.x === 0 && p.y ===0 ) {
-            p.type = this.waterType
-            p.setBreed(this.waters)
-            p.height += this.initialWater
-            p.graphElev = p.height
-          }
-        })
-        */
-
-
       }
 
 //---------------------------------------------
-    step(age=0) {
-      if (age === 400) {
-        console.log(`Done Raining`)
+    step(){
+      this.age ++
+      console.log(this.age)
+      if(this.age % 120 ===0){
+        console.log(String(this.age/120) + ' hours elapsed') //Hours elapsed
+        var total = 0
+        var count = 0
+        this.patches.ask(p => {
+          if(p.type === this.floodWaterType){
+            total += p.floodDepth
+            count++
+          }
+        })
+        console.log('Average flood water depth is ' + String(total/(count*10)) +' meters') //average flood water depth
       }
+      this.waters.ask( w => {
+        this.flow(w)
+        })
 
       //rain
-      if (age < 400){
+      if (this.age % this.timeScale === 0){
         this.patches.ask(p => {
-          p.rainDepth += this.rainfall
+          p.rainDepth += (this.rainfall)/60
           if(p.type === this.rockType && p.rainDepth > 0){
             p.type = this.rainWaterType
             p.setBreed(this.waters)
@@ -164,35 +119,31 @@ export default class FloodModel extends Model {
             p.rainDepth = 0
             p.floodDepth += 1
             p.type = this.floodWaterType
-            p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.floodDepth)/(this.maxHeight - this.minHeight))
+            p.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
           }
         })
-      }
-
-      this.waters.ask( w => {
-        this.flow(w)
-        })
+        }
       }
 
 
     flow(p) {
 
       if(this.edgeRunoff === true && (p.x === this.world.minX || p.x === this.world.maxX || p.y === this.world.minY || p.y === this.world.maxY)){
-        if(p.type = this.rainWaterType){
+        if(p.type === this.rainWaterType){
           p.rainDepth = 0
           p.type = this.rockType
           p.setBreed(this.rocks)
-          p.graphElev = Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
+          p.graphElev = this.rockGraphic(p.elevation)
         }
-        if(p.type = this.floodWaterType){
+        if(p.type === this.floodWaterType){
           p.floodDepth -= 1
-          p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.floodDepth)/(this.maxHeight - this.minHeight))
-          if(p.floodDepth >= 0){
+          p.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
+          if(p.floodDepth <= 0){
             p.type = this.rainWaterType
-            if(p.rainDepth >= 0){
+            if(p.rainDepth <= 0){
               p.type = this.rockType
               p.setBreed(this.rocks)
-              p.graphElev = Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
+              p.graphElev = this.rockGraphic(p.elevation)
             }
           }
         }
@@ -216,13 +167,13 @@ export default class FloodModel extends Model {
         }
       })
 
-      
+
       //move as long as possible
       while (found != null && p.type != this.rockType) {
         if(p.type === this.rainWaterType){
           p.type = this.rockType
           p.setBreed(this.rocks)
-          p.graphElev = Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
+          p.graphElev = this.rockGraphic(p.elevation)
           found.rainDepth += p.rainDepth
           p.rainDepth = 0
           if (found.type === this.rockType) {
@@ -233,26 +184,26 @@ export default class FloodModel extends Model {
             p.rainDepth = 0
             p.floodDepth += 1
             p.type = this.floodWaterType
-            p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.floodDepth)/(this.maxHeight - this.minHeight))
+            p.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
           }
         }
 
         else if (p.type === this.floodWaterType) {
           p.floodDepth -= 1
-          p.graphElev= Math.floor(255*(p.elevation-this.minHeight+p.floodDepth)/(this.maxHeight - this.minHeight)) //p.graphElev += 1 //p.height
+          p.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
           if (p.floodDepth <= 0) {
             p.type = this.rainWaterType
             if (p.rainDepth <= 0){
               p.type = this.rockType
               p.setBreed(this.rocks)
             }
-            p.graphElev = Math.floor(255*(p.elevation-this.minHeight)/(this.maxHeight - this.minHeight))
+            p.graphElev = this.rockGraphic(p.elevation)
           }
           found.floodDepth += 1
           if (found.type != this.floodWaterType){
             found.type = this.floodWaterType
             found.setBreed(this.waters)
-            found.graphElev= Math.floor(255*(found.elevation-this.minHeight + found.floodDepth)/(this.maxHeight - this.minHeight)) //next[choice].graphElev += 1 // next[choice].height
+            found.graphElev = this.waterGraphic(found.elevation, found.floodDepth)
           }
         }
 
@@ -277,50 +228,11 @@ export default class FloodModel extends Model {
       }
     }
 
-
-
-    getContext2d (img, offsetx, offsety, newwidth, newheight) {
-      var w = newwidth || img.width
-      var h = newheight || img.height
-      var can = new OffscreenCanvas(w, h, { alpha: false })
-      var ctx = can.getContext('2d')
-      ctx.fillStyle = 'white'
-      ctx.fillRect(0, 0, w, h)
-      ctx.drawImage(img, 0, 0, w, h)
-      return ctx
+    waterGraphic(elevation, depth){
+      return Math.floor(255*(elevation-this.minHeight+depth)/(this.maxHeight - this.minHeight))
     }
 
-    getImageData(img, offsetx, offsety, newwidth, newheight) {
-      var ctx = this.getContext2d(img, offsetx, offsety, newwidth, newheight)
-      var imgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
-      return imgData
+    rockGraphic(elevation){
+      return Math.floor(255*(elevation-this.minHeight)/(this.maxHeight - this.minHeight))
     }
-
-    extractRGBArray(imageData, addition, multiplier) {
-      addition = addition || 0
-      multiplier = multiplier || 1
-      var imgdat = imageData
-      var numbArray = new Array(this.worldSize * this.worldSize)
-      var dat = imgdat.data
-      for (var i = 0; i < dat.length; i += 4) {
-        var rgb = [dat[i], dat[i + 1], dat[i + 2]]
-        var numb = this.rgb2Number(rgb) * multiplier + addition
-        if (dat[i + 3] < 250) {
-            //white background or opacity means no data to me.
-            numb = -1
-          }
-          if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
-            numb = -1
-          }
-          numbArray[Math.floor(i / 4)] = numb
-        }
-        return numbArray
-}
-
-rgb2Number(rgb) {
-  var n = rgb[0] * 256 * 256 + rgb[1] * 256 + rgb[2]
-  return n
-}
-
-
 }

@@ -9,9 +9,9 @@ import util from '../src/util.js'
 util.toWindow({ Color, ColorMap, Animator, GUI, TwoView, FloodModel, util })
 
 const template = {
-    rainfallRate: { value: 0, extent: [0, 25, 1] },
+    rainfallRate: { value: 10, extent: [0, 25, 1] },
     patchSize: { value: 12, extent: [1, 20, 1] },
-    edgeRunoff: { value: false},
+    edgeRunoff: { value: true},
     run: { value: () => anim.toggle() },
 }
 const controls = new GUI(template).target
@@ -31,9 +31,9 @@ class FloodModelCtrl extends FloodModel {
       steps: 500,
       rainfall: 10,
       intialWater: 40,
-      modelZ: '12',
-      modelX: '843',
-      modelY: '1614',
+      modelZ: '13', //12
+      modelX: '1687', //843
+      modelY: '3229', //1614
       edgeRunoff: false,
   }
 
