@@ -90,7 +90,6 @@ export default class FloodModel extends Model {
 //---------------------------------------------
     step(){
       this.age ++
-      console.log(this.age)
       if(this.age % 120 ===0){
         console.log(String(this.age/120) + ' hours elapsed') //Hours elapsed
         var total = 0

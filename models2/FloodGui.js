@@ -4,7 +4,7 @@ import ColorMap from '../src/ColorMap.js'
 import Animator from '../src/Animator.js'
 import GUI from '../src/GUI.js'
 import TwoView from '../src/TwoView.js'
-import FloodModel from '../models/FloodModel.js'
+import FloodModel from '../models/ErosionModel.js'
 import util from '../src/util.js'
 util.toWindow({ Color, ColorMap, Animator, GUI, TwoView, FloodModel, util })
 
@@ -12,6 +12,7 @@ const template = {
     rainfallRate: { value: 10, extent: [0, 25, 1] },
     patchSize: { value: 12, extent: [1, 20, 1] },
     edgeRunoff: { value: true},
+    dryUp: { value: false},
     run: { value: () => anim.toggle() },
 }
 const controls = new GUI(template).target
@@ -20,6 +21,7 @@ class FloodModelCtrl extends FloodModel {
     step() {
         this.rainfall = controls.rainfallRate
         this.edgeRunoff = controls.edgeRunoff
+        this.dryUp = controls.dryUp
         super.step()
       }
   }
