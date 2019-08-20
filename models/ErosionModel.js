@@ -43,42 +43,8 @@ export default class ErosionModel extends FloodModel {
           }
 
           if(this.edgeRunoff === true && (p.x === this.world.minX || p.x === this.world.maxX || p.y === this.world.minY || p.y === this.world.maxY)){
-            if(p.type === this.rainWaterType){
-              p.hp -= p.rainDepth
-              p.rainDepth = 0
-              p.type = this.rockType
-              p.setBreed(this.rocks)
-              p.graphElev = this.rockGraphic(p.elevation)
-              if (p.hp <= 0){
-                p.hp = 100
-                p.elevation -= 1
-                p.graphElev = this.rockGraphic(p.elevation)
-              }
-            }
-            if(p.type === this.floodWaterType){
-              p.floodDepth -= 1
-              p.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
-              if(p.floodDepth <= 0){
-                p.type = this.rainWaterType
-                if(p.rainDepth <= 0){
-                  p.type = this.rockType
-                  p.setBreed(this.rocks)
-                  p.graphElev = this.rockGraphic(p.elevation)
-                }
-              }
-              if (p.sediment === 0){
-                p.elevation -= 1
-                if (p.type != this.floodWaterType){
-                  p.graphElev = this.rockGraphic(p.elevation)
-                }
-                else{
-                  p.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
-                }
-              }
-              else{
-                p.sediemnt -= 1
-              }
-            }
+            this.flowOffMap(p)
+            return null
           }
 
           var options = 0
@@ -113,6 +79,11 @@ export default class ErosionModel extends FloodModel {
 
           //move as long as possible
           while (found != null && p.type != this.rockType) {
+
+            if(this.edgeRunoff === true && (p.x === this.world.minX || p.x === this.world.maxX || p.y === this.world.minY || p.y === this.world.maxY)){
+              console.log('something is wrong')
+            }
+
             if(p.type === this.rainWaterType){
               p.type = this.rockType
               p.setBreed(this.rocks)
@@ -173,6 +144,11 @@ export default class ErosionModel extends FloodModel {
             }
 
             //update
+            if(this.edgeRunoff === true && (p.x === this.world.minX || p.x === this.world.maxX || p.y === this.world.minY || p.y === this.world.maxY)){
+              this.flowOffMap(p)
+              return null
+            }
+
             var options = 0
             var count = 0
             var found = null
@@ -190,6 +166,46 @@ export default class ErosionModel extends FloodModel {
                 count++
               }
             })
+          }
+        }
+
+        flowOffMap(p){
+          if(p.type === this.rainWaterType){
+            p.sediment = 0
+            p.hp -= p.rainDepth
+            p.rainDepth = 0
+            p.type = this.rockType
+            p.setBreed(this.rocks)
+            p.graphElev = this.rockGraphic(p.elevation)
+            if (p.hp <= 0){
+              p.hp = 100
+              p.elevation -= 1
+              p.graphElev = this.rockGraphic(p.elevation)
+            }
+          }
+          if(p.type === this.floodWaterType){
+            p.floodDepth -= 1
+            p.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
+            if(p.floodDepth <= 0){
+              p.type = this.rainWaterType
+              if(p.rainDepth <= 0){
+                p.type = this.rockType
+                p.setBreed(this.rocks)
+                p.graphElev = this.rockGraphic(p.elevation)
+              }
+            }
+            if (p.sediment === 0){
+              p.elevation -= 1
+              if (p.type != this.floodWaterType){
+                p.graphElev = this.rockGraphic(p.elevation)
+              }
+              else{
+                p.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
+              }
+            }
+            else{
+              p.sediemnt -=1
+            }
           }
         }
 

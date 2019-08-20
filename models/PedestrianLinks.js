@@ -1,3 +1,5 @@
+//fix patch/breed issue within array
+
 import Model from '../src/Model.js'
 import util from '../src/util.js'
 import DataSet from '../src/DataSet.js'
@@ -11,12 +13,11 @@ export default class PedestrianModel extends Model {
         populationDensity: 50, //0-100 percent chance that a seed patch spawns a turtle at start
         dangerSize: 20,
         age: 0,
-        barriers: 0,
-        timePriority: 8,
       }
     }
 
   setup(){
+
     this.patchBreeds('exits obstacles seeds paths dangers')
     this.patchTypes = [
         'exit',
@@ -36,34 +37,13 @@ export default class PedestrianModel extends Model {
       p.visited = 0
       p.traffic = 0
     })
-    this.age =
+    this.age = 0
+
     this.loadImageMap()
-    this.addBarriers()
     this.fillDistance()
+    //this.addDanger()
     this.seed()
     this.patchCheck()
-  }
-
-  addBarriers(){
-    var i
-    for(i = 0; i < this.barriers; i++){
-        var xCor = util.randomInt((this.worldSize*2)+1) - this.worldSize
-        var yCor = -5-(util.randomInt(this.worldSize-10))
-        this.patches.ask( p => {
-          if( p.x === xCor && p.y === yCor){
-            p.type = this.obstacleType
-            p.setBreed(this.obstacles)
-            p.neighbors.ask( n => {
-              n.type = this.obstacleType
-              n.setBreed(this.obstacles)
-              n.neighbors.ask( s => {
-                s.type = this.obstacleType
-                s.setBreed(this.obstacles)
-              })
-            })
-          }
-        })
-    }
   }
 
   addDanger(){
@@ -128,11 +108,15 @@ export default class PedestrianModel extends Model {
 
   loadImageMap(){
     var img = new Image()
-    img.src = '../src/MarcyLarge.png'
+    img.src = '../src/MarcyBlank.png'
+    //var imgBlob = img.blob()
+    //var i = createImageBitmap(imgBlob)
     var imageMap = Map.getImageData(img, 0, 0, (this.worldSize * 2)+1, (this.worldSize * 2)+1)
     this.imageArray = new Array(((this.worldSize * 2)+1) * ((this.worldSize * 2)+1))
     this.imageArrayBreeds = new Array(((this.worldSize * 2)+1) * ((this.worldSize * 2)+1))
     var dat = imageMap.data
+    //console.log(imageMap.data)
+    //var numbArray = this.imageArray
     for (var i = 0; i < dat.length; i += 4) {
       var patch = null
       var breed = null
@@ -222,6 +206,45 @@ export default class PedestrianModel extends Model {
         s.sprout()
       }
     })
+    //add links to the turtles
+    this.turtles.ask( t => {
+      t.unlinked = true
+    })
+    this.turtles.ask( t => {
+      if(t.unlinked){
+      t.unlinked = false
+      var friendCount = util.randomInt(5)
+      var links = 0
+      var friends = [t]
+      t.patch.neighbors.ask( n => {
+        if(n.turtlesHere().length > 0 && links < friendCount){
+          if(n.turtlesHere()[0].unlinked){
+            n.turtlesHere()[0].unlinked = false
+            friends.push(n.turtlesHere()[0])
+            links ++
+          }
+        }
+        n.neighbors.ask( s => {
+          if(s.turtlesHere().length > 0 && links < friendCount){
+            if(s.turtlesHere()[0].unlinked){
+              s.turtlesHere()[0].unlinked = false
+              friends.push(s.turtlesHere()[0])
+              links ++
+            }
+          }
+        })
+      })
+      var i
+      for(i = 0; i < friends.length; i++){
+        var j
+        for(j = 0; j < friends.length; j++){
+          if(friends[i] != friends[j]){
+            this.links.create(friends[i], friends[j])
+          }
+        }
+      }
+    }
+    })
   }
 
 //movement: move forward toward center of desired patch, slower when current patch has more people
@@ -229,15 +252,6 @@ export default class PedestrianModel extends Model {
     this.age++
     this.turtles.ask(t => {
       this.walk(t)
-    })
-    this.patches.ask( p => {
-      if(p.turtlesHere().length === 0){
-        p.reset += 1
-        if(p.reset > 2){
-          p.reset = 0
-          p.traffic = 0
-        }
-      }
     })
   }
 
@@ -255,10 +269,27 @@ export default class PedestrianModel extends Model {
       }
       //otherwise write distance based on average-time and distance formula
       else{
-        n.value = (n.distance - t.patch.distance) + (this.timePriority)*(n.traffic/this.age) //4*(n.turtlesHere().length)  //weighted value that considers how close each patch is and how many people already there
+        n.value = (n.distance - t.patch.distance) + (10)*(n.traffic/this.age) //4*(n.turtlesHere().length)  //weighted value that considers how close each patch is and how many people already there
       }
       //block passage if patch has too many turtles
       if(n.turtlesHere().length > 2){
+        n.value = Infinity
+      }
+      //block passage to patches that are not near a linked turtle
+      var linksNearby = false
+      n.neighbors.ask( s => {
+        //check if any turtles in s are a link of t
+        var i
+        for(i = 0; i < s.turtlesHere().length; i++ ){
+          var j
+          for(j = 0; j < t.links.length; j++ ){
+            if(s.turtlesHere()[i] === t.linkNeighbors()[j]){
+              linksNearby = true
+            }
+          }
+        }
+      })
+      if(linksNearby === false){
         n.value = Infinity
       }
       //prioritize exit patches at end to avoid ridiculous behavior
@@ -267,7 +298,14 @@ export default class PedestrianModel extends Model {
       }
     })
 
-    var lowest = [[(this.timePriority)*(t.patch.traffic/this.age), t.patch]]
+
+
+    var wiggle = false //roll to see if we take a suboptimal path
+    if (util.randomInt(4)===0){
+      wiggle = false
+    }
+    var lowest = [[(10)*(t.patch.traffic/this.age), t.patch]]
+    var second = [[Infinity, null]]
     var next = null
     t.patch.neighbors.ask( n => {
       if (n.value < lowest[0][0] && n.type != this.obstacleType){
@@ -276,10 +314,27 @@ export default class PedestrianModel extends Model {
       else if (n.value === lowest[0][0] && n.type != this.obstacleType) {
         lowest.push([n.value, n])
       }
+      else if (n.value < second[0][0] && n.type != this.obstacleType) {
+        second[0] = [n.value, n]
+      }
+      else if (n.value < second[0][0] && n.type != this.obstacleType) {
+        second.push([n.value, n])
+      }
     })
 
-    next = lowest[Math.floor(Math.random() * lowest.length)][1]
-    if(next != null && next != t.patch){
+    //Here a bug may occur where the second matrix is empty if all nearby patches with non-infinite distance
+    //are tied in their distance. To solve I add the code below:
+    if(second[0][1] === null){
+      second = lowest
+    }
+
+    if (wiggle){ //go to 2nd lowest value
+      next = second[Math.floor(Math.random() * second.length)][1]
+    }
+    else{//go to lowest value
+      next = lowest[Math.floor(Math.random() * lowest.length)][1]
+    }
+    if(next != null){
       t.face(next)
       t.speed = (0.8 + 0.1*util.randomInt(5))*(this.speed/((t.patch.turtlesHere().length)))//second term here is the number of turtles in this patch
       t.forward(t.speed)
