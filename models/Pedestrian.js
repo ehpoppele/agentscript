@@ -9,34 +9,35 @@ export default class PedestrianModel extends Model {
         worldSize: 64,
         speed: 1,
         populationDensity: 50, //0-100 percent chance that a seed patch spawns a turtle at start
-        dangerSize: 20,
         age: 0,
         barriers: 0,
-        timePriority: 8,
+        timePriority: 8, //factor in turtle movement that gives value to less-often occupied patches; higher values means more priority given
       }
     }
 
+  //danger is unused type
   setup(){
     this.patchBreeds('exits obstacles seeds paths dangers')
     this.patchTypes = [
-        'exit',
-        'obstacle',
-        'seed',
-        'path',
-        'danger',
+        'exit', //turtles move towards exit and are removed once there
+        'obstacle', //obstacles are impassable (at least supposed to be)
+        'seed', //passable terrain that spawns turtles at start
+        'path', //passable terrain between seed and exit
+        'danger', //unused type for a threat that turtles move away from
     ]
     this.exitType = this.patchTypes[0]
     this.obstacleType = this.patchTypes[1]
     this.seedType = this.patchTypes[2]
     this.pathType = this.patchTypes[3]
     this.dangerType = this.patchTypes[4]
+    //initialize for floodfill; all patches begin at inf. distance
     this.patches.ask(p => {
       p.distance = Infinity
       p.value = Infinity
-      p.visited = 0
+      p.visited = 0s
       p.traffic = 0
     })
-    this.age =
+    this.age = 0
     this.loadImageMap()
     this.addBarriers()
     this.fillDistance()
@@ -44,6 +45,9 @@ export default class PedestrianModel extends Model {
     this.patchCheck()
   }
 
+  //adds more random obstacles to the bottom half of the Map
+  //meant for use with the marcy map to make the field past the
+  //bottleneck more interesting
   addBarriers(){
     var i
     for(i = 0; i < this.barriers; i++){
@@ -66,43 +70,13 @@ export default class PedestrianModel extends Model {
     }
   }
 
-  addDanger(){
-      var xCor = util.randomInt((this.worldSize * 2)+1) - this.worldSize
-      var yCor = util.randomInt((this.worldSize * 2)+1) - this.worldSize
-      this.patches.ask( p => {
-        if(p.x === xCor && p.y === yCor){
-          p.type = this.dangerType
-          p.setBreed(this.dangers)
-          var count = this.dangerSize
-          console.log(this.dangerSize)
-          while (count > 0){
-            this.dangers.ask(d =>{
-              d.distance += 4
-              d.neighbors4.ask( n =>{
-                n.type = this.dangerType
-              })
-            })
-            this.patches.ask( p => {
-              if(p.type === this.dangerType){
-                p.setBreed(this.dangers)
-              }
-            })
-            count -= 1
-          }
-          this.dangers.ask( d => {
-            d.distance += 4
-          })
-        }
-      })
-  }
-
+  //checks there are no obvious errors with patch values after everything is set up
   patchCheck(){
     this.exits.ask( e =>{
       if (e.distance != 0){
         console.log('error with an exit')
       }
     })
-
     this.paths.ask( p =>{
       if (p.distance < 1 || p.distance > 999999){
         console.log('error with a path')
@@ -110,7 +84,6 @@ export default class PedestrianModel extends Model {
         p.setBreed(this.obstacles)
       }
     })
-
     this.seeds.ask( s =>{
       if (s.distance < 1 || s.distance > 999999){
         console.log('error with a seed')
@@ -118,7 +91,6 @@ export default class PedestrianModel extends Model {
         s.setBreed(this.obstacles)
       }
     })
-
     this.obstacles.ask( o =>{
       if (o.distance != Infinity){
         console.log('error with an obstacle')
@@ -126,6 +98,10 @@ export default class PedestrianModel extends Model {
     })
   }
 
+  //Uses topo map tools to build map from a png imageMap
+  //image should be square of (2*worldSize)+1 dimensions,
+  //with black for paths, blue for seeds, green for exits,
+  //and red for obstacles. Using pure color (0,255,0), etc is best for this.
   loadImageMap(){
     var img = new Image()
     img.src = '../src/MarcyLarge.png'
@@ -176,6 +152,12 @@ export default class PedestrianModel extends Model {
       })
   }
 
+  //initially fill just from exits
+  //iterates through a loop which asks every patch that has a distance
+  //to make sure all its neighbors are within 1 distance of it. If they
+  //are not or don't have distance yet, they are given an appropriate distance.
+  //this loops continuously until no change is made in one whole loop.
+  //Exits start with distance zero, and paths are filled out from there.
   fillDistance(){
     this.exits.ask( e => {
       e.distance = 0
@@ -183,7 +165,6 @@ export default class PedestrianModel extends Model {
       this.floodFill(e)
     })
     this.recentChange = true
-    //console.log('starting the big work')
     var count = 0
     while(this.recentChange === true){
       this.recentChange = false
@@ -193,13 +174,11 @@ export default class PedestrianModel extends Model {
         }
       })
     }
-    //console.log('flood finished')
   }
 
-  floodFill(p){ //we flood fill until everything has been visited
-    //but need to reset whenever a shorter path is found;
-    //setting up to confirm that is lowest distance value
-    //when we visit again via another route that is longer
+  floodFill(p){
+    //check both ways; if neighbor is too far set to p+1,
+    //neighbor is much shorter set p to neighbor+1
     p.neighbors4.ask( n =>{
       if(n.type === this.seedType || n.type === this.pathType){
         if(n.distance > p.distance + 1){
@@ -210,12 +189,11 @@ export default class PedestrianModel extends Model {
           p.distance = n.distance + 1
           this.recentChange = true
         }
-          //console.log('shorter distance found')
-
       }
     })
   }
 
+  //Add all turtles before movement begins
   seed(){
     this.seeds.ask( s =>{
       if(util.randomInt(100) < this.populationDensity){
@@ -225,6 +203,7 @@ export default class PedestrianModel extends Model {
   }
 
 //movement: move forward toward center of desired patch, slower when current patch has more people
+//priority is based on patch traffic/model average
   step(){
     this.age++
     this.turtles.ask(t => {
@@ -267,7 +246,8 @@ export default class PedestrianModel extends Model {
       }
     })
 
-    var lowest = [[(this.timePriority)*(t.patch.traffic/this.age), t.patch]]
+    //begin with the lowest value tile as the current one, so no movement to a tile worse than your current one
+    var lowest = [[(this.timePriority)*(t.patch.traffic/this.age), t.patch]] //lowest is an array so we can add any patches with a tied valued and choose one at random
     var next = null
     t.patch.neighbors.ask( n => {
       if (n.value < lowest[0][0] && n.type != this.obstacleType){
@@ -278,10 +258,11 @@ export default class PedestrianModel extends Model {
       }
     })
 
+    //pick one patch at random from the array of lowest-value patches and move to it
     next = lowest[Math.floor(Math.random() * lowest.length)][1]
     if(next != null && next != t.patch){
       t.face(next)
-      t.speed = (0.8 + 0.1*util.randomInt(5))*(this.speed/((t.patch.turtlesHere().length)))//second term here is the number of turtles in this patch
+      t.speed = (0.8 + 0.1*util.randomInt(5))*(this.speed/((t.patch.turtlesHere().length)))//speed significantly varies based on number of turtles, and less so by random value
       t.forward(t.speed)
     }
   }

@@ -36,6 +36,7 @@ class PedestrianModelCtrl extends PedestrianModel {
 
   const timeoutMS = 0
 
+  //patch colors are the same as the image they are loaded from in this case
   const patchPixels = {
       exit: [0, 255, 0],
       obstacle: [255, 0, 0],
@@ -76,7 +77,6 @@ class PedestrianModelCtrl extends PedestrianModel {
 
           this.clear()
           this.drawPatches(model.patches, p => Color.rgbaToPixel(patchPixels[p.type][0], patchPixels[p.type][1], patchPixels[p.type][2] )) // redraw patches colors
-          //this.drawLinks(model.links, { color: colors.gray.css, width: 1 })
           this.drawTurtles(model.turtles, p => ({
             shape: 'circle',
             color: 'yellow',

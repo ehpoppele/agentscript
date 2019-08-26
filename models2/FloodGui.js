@@ -8,6 +8,7 @@ import FloodModel from '../models/FloodModel.js'
 import util from '../src/util.js'
 util.toWindow({ Color, ColorMap, Animator, GUI, TwoView, FloodModel, util })
 
+//template/defaults for GUI
 const template = {
     rainfallRate: { value: 10, extent: [0, 25, 1] },
     patchSize: { value: 12, extent: [1, 20, 1] },
@@ -41,6 +42,7 @@ class FloodModelCtrl extends FloodModel {
 
   const timeoutMS = 0
 
+  //define color for each patch type
   const patchPixels = {
       rock: [1, 0.66, 0.33],
       rainWater: [1, 0.66, 0.33],
@@ -79,6 +81,7 @@ class FloodModelCtrl extends FloodModel {
           if (this.draws === 0) this.initPatches()
 
           this.clear()
+          //draw patches with color based on type and shade based on elevation
           this.drawPatches(model.patches, p => Color.rgbaToPixel((p.graphElev*(patchPixels[p.type][0]) ),(p.graphElev*patchPixels[p.type][1]),(p.graphElev*patchPixels[p.type][2]))) // redraw patches colors
           this.draws++
       }

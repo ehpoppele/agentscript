@@ -8,6 +8,7 @@ import FloodModel from '../models/ErosionModel.js'
 import util from '../src/util.js'
 util.toWindow({ Color, ColorMap, Animator, GUI, TwoView, FloodModel, util })
 
+//gui template and defaults
 const template = {
     rainfallRate: { value: 10, extent: [0, 25, 1] },
     patchSize: { value: 12, extent: [1, 20, 1] },
@@ -41,6 +42,7 @@ class FloodModelCtrl extends FloodModel {
 
   const timeoutMS = 0
 
+  //patch color array
   const patchPixels = {
       rock: [1, 0.66, 0.33],
       rainWater: [1, 0.66, 0.33],
@@ -52,6 +54,7 @@ class FloodModelCtrl extends FloodModel {
   const world = World.defaultWorld((Math.floor(params.worldSize/2) - 1))
   const model = new FloodModelCtrl(world)
 
+  //assign parameters after loading from url
   model.worldSize = params.worldSize
   model.initialWater = params.initialWater
   model.rainfall = params.rainfall
@@ -79,6 +82,7 @@ class FloodModelCtrl extends FloodModel {
           if (this.draws === 0) this.initPatches()
 
           this.clear()
+          //draw model based on patch type and elevation
           this.drawPatches(model.patches, p => Color.rgbaToPixel((p.graphElev*(patchPixels[p.type][0]) ),(p.graphElev*patchPixels[p.type][1]),(p.graphElev*patchPixels[p.type][2]))) // redraw patches colors
           this.draws++
       }

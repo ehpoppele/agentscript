@@ -1,3 +1,4 @@
+//code borrowed largely from RTE github (I forgor where) to get elevation data from tiles
 
 export function getImageData(img, offsetx, offsety, newwidth, newheight) {
   var ctx = getContext2d(img, offsetx, offsety, newwidth, newheight)

@@ -26,7 +26,7 @@ export default class FloodModel extends Model {
         Object.assign(this, FloodModel.defaults())
     }
 
-    //Loads up map based on lat/long squares and given coords
+    //Startup function loads image for worldmap through TopoMap file
     async startup(){
       let img = await fetch(this.imageURL)
       let imgBlob = await img.blob()
@@ -38,28 +38,26 @@ export default class FloodModel extends Model {
       })
     }
 
-    //draws terrain based on map and assigns properties
     setup() {
+        //initialize patches and types
         this.patchBreeds('waters rocks')
-
         this.patchTypes = [
-            'rock',
-            'rainWater',
-            'floodWater',
+            'rock', //normal terrain
+            'rainWater', //water < 0.1m in depth, causes less erosion and does not display
+            'floodWater', //water > 0.1m in depth, visible as blue on map
         ]
         this.rockType = this.patchTypes[0]
         this.rainWaterType = this.patchTypes[1]
         this.floodWaterType = this.patchTypes[2]
-
         this.patches.ask(p => {
-          p.elevation = 0
-          p.floodDepth = 0
-          p.rainDepth = 0
+          p.elevation = 0 //measure in decimeters
+          p.floodDepth = 0 //measured in decimeters
+          p.rainDepth = 0 //measured in millimeters
           p.type = this.rockType
           p.setBreed(this.rocks)
         })
 
-        //ImageTile Setup
+        //Resample and build array from loaded image
         var heightDataSet = new DataSet(256, 256, this.imageArray)
         heightDataSet = heightDataSet.resample(this.worldSize, this.worldSize)
         var heightArray = []
@@ -81,17 +79,17 @@ export default class FloodModel extends Model {
           if (p.elevation < this.minHeight) this.minHeight = p.elevation
         })
 
-        //now do the scaling work
+        //Set display of patches to match relative elevation
         this.patches.ask(p => {
           p.graphElev= this.rockGraphic(p.elevation)
         })
       }
 
-//---------------------------------------------
     step(){
+      //log console information to provide data for length/severity of flood
       this.age ++
       if(this.age % 120 ===0){
-        console.log(String(this.age/120) + ' hours elapsed') //Hours elapsed
+        console.log(String(this.age/120) + ' hours elapsed')
         var total = 0
         var count = 0
         this.patches.ask(p => {
@@ -106,7 +104,7 @@ export default class FloodModel extends Model {
         this.flow(w)
         })
 
-      //rain
+      //Rain on all patches every few steps/ 1 minute by adding rainwater depth
       if (this.age % this.timeScale === 0){
         this.patches.ask(p => {
           p.rainDepth += (this.rainfall)/60
@@ -126,7 +124,10 @@ export default class FloodModel extends Model {
 
 
     flow(p) {
+      //Floodwater often has rainwater depth on top of it, so flood drains to rain drains to rock
 
+      //if edgeRunoff is set, tiles just off the map are assumed to be lower in elevation than their neighbors on the edge
+      //not completely realistic, but somewhat as any given tile is likely part of a larger watershed that it should drain to
       if(this.edgeRunoff === true && (p.x === this.world.minX || p.x === this.world.maxX || p.y === this.world.minY || p.y === this.world.maxY)){
         if(p.type === this.rainWaterType){
           p.rainDepth = 0
@@ -148,15 +149,19 @@ export default class FloodModel extends Model {
         }
       }
 
+      //initialize movement variables
       var options = 0
       var count = 0
-      var found = null
+      var found = null //patch of lower elevation that is chosen to move to
 
+      //find number of possible tiles to flow to
       p.neighbors.ask ( n => {
         if ((n.type === this.floodWaterType && (n.floodDepth + n.elevation) < (p.floodDepth + p.elevation)) || (n.type != this.floodWaterType && (n.floodDepth + n.elevation + 1) < (p.floodDepth + p.elevation))){
           options ++
         }
       })
+      //iterate over these again, trying each one with increasing random odds
+      //this leads to fully random selection, as we give each tile 1 in (# of remaining tiles) odds
       p.neighbors.ask ( n => {
         if ((n.type === this.floodWaterType && (n.floodDepth + n.elevation) < (p.floodDepth + p.elevation)) || (n.type != this.floodWaterType && (n.floodDepth + n.elevation + 1) < (p.floodDepth + p.elevation))){
           if (found === null && util.randomInt(options - count) === 0){
@@ -167,7 +172,8 @@ export default class FloodModel extends Model {
       })
 
 
-      //move as long as possible
+      //move as long as possible in each step; separate cases for each rainwater type to deal with how their water adds to next tile;
+      //general movement behavior is same for flood v rain water
       while (found != null && p.type != this.rockType) {
         if(p.type === this.rainWaterType){
           p.type = this.rockType
@@ -206,11 +212,10 @@ export default class FloodModel extends Model {
           }
         }
 
-        //update
+        //update variables and movement options again before restarting loop
         var options = 0
         var count = 0
         var found = null
-
         p.neighbors.ask ( n => {
           if ((n.type === this.floodWaterType && (n.floodDepth + n.elevation) < (p.floodDepth + p.elevation)) || (n.type != this.floodWaterType && (n.floodDepth + n.elevation + 1) < (p.floodDepth + p.elevation))){
             options ++
@@ -227,10 +232,11 @@ export default class FloodModel extends Model {
       }
     }
 
+    //helper functions to return appropriate graph elevation for each types
+    //graph elevation is always drawn with respecct to relative minimums and maximums of the map, regardless of overall real world elevation
     waterGraphic(elevation, depth){
       return Math.floor(255*(elevation-this.minHeight+depth)/(this.maxHeight - this.minHeight))
     }
-
     rockGraphic(elevation){
       return Math.floor(255*(elevation-this.minHeight)/(this.maxHeight - this.minHeight))
     }
