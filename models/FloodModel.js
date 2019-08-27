@@ -1,3 +1,4 @@
+//Flood Model and Basis for erosion; Eli Poppele
 import Model from '../src/Model.js'
 import util from '../src/util.js'
 import DataSet from '../src/DataSet.js'

@@ -1,3 +1,5 @@
+//View and run file for Pedestrian Evacuation Model; Eli Poppele
+//Similar to other agentscript gui files, nothing exceptional here
 import World from '../src/World.js'
 import Color from '../src/Color.js'
 import ColorMap from '../src/ColorMap.js'
@@ -29,7 +31,7 @@ class PedestrianModelCtrl extends PedestrianModel {
       steps: 500,
       speed: 0.5,
       populationDensity: 90,
-      dangerSize: 20,
+      //dangerSize: 20,
       barriers: 0,
       timePriority: 8,
   }

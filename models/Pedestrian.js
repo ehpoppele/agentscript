@@ -1,3 +1,5 @@
+//Pedestrian Evacuation Model File; Eli Poppele
+//currently loads image from /src folder in agentscript; change as appropriate before running
 import Model from '../src/Model.js'
 import util from '../src/util.js'
 import DataSet from '../src/DataSet.js'
@@ -34,7 +36,7 @@ export default class PedestrianModel extends Model {
     this.patches.ask(p => {
       p.distance = Infinity
       p.value = Infinity
-      p.visited = 0s
+      p.visited = 0
       p.traffic = 0
     })
     this.age = 0
@@ -104,7 +106,7 @@ export default class PedestrianModel extends Model {
   //and red for obstacles. Using pure color (0,255,0), etc is best for this.
   loadImageMap(){
     var img = new Image()
-    img.src = '../src/MarcyLarge.png'
+    img.src = '../src/EvacMap.png' //can be set to any appropriate image file so long as worldSize is set properly
     var imageMap = Map.getImageData(img, 0, 0, (this.worldSize * 2)+1, (this.worldSize * 2)+1)
     this.imageArray = new Array(((this.worldSize * 2)+1) * ((this.worldSize * 2)+1))
     this.imageArrayBreeds = new Array(((this.worldSize * 2)+1) * ((this.worldSize * 2)+1))
@@ -234,7 +236,7 @@ export default class PedestrianModel extends Model {
       }
       //otherwise write distance based on average-time and distance formula
       else{
-        n.value = (n.distance - t.patch.distance) + (this.timePriority)*(n.traffic/this.age) //4*(n.turtlesHere().length)  //weighted value that considers how close each patch is and how many people already there
+        n.value = (n.distance - t.patch.distance) + (this.timePriority)*(n.traffic/this.age)//4*(n.turtlesHere().length)  //weighted value that considers how close each patch is and how many people already there
       }
       //block passage if patch has too many turtles
       if(n.turtlesHere().length > 2){

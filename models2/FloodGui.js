@@ -1,3 +1,6 @@
+//View and Run File for the flood model; Eli Poppele
+//Based on other agentscript GUI files; adds controls,
+//establishes params, creates and runs model and view
 import World from '../src/World.js'
 import Color from '../src/Color.js'
 import ColorMap from '../src/ColorMap.js'

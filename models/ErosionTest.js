@@ -1,14 +1,6 @@
-//Erosion Model File that extends flood model; Eli Poppele
-//erosion itself in the model does not currently work well
-//Currently, rainwater wears down a patch, then pushes one unit of height
-//into the immediate next tile once patch "hp" is too low,
-//the idea being shallow/slow water can't carry sediment far.
-//flood water can erode a whole unit of height in one go, and
-//then carries it as sediment in the water. Once the water in the tile
-//has no options for movement, the sediment will settle
-//despite sediement being able to flow off the edge of the map,
-//this still seems to usually result in rivers and other natural waterways
-//becoming shallower and filled with sediment, rather than more eroded over time.
+//Eli Poppele
+//This is a test file for the erosion model
+//it is identical except it adds a large initial flood of water, to be used with rainfall = 0
 
 import Model from '../src/Model.js'
 import DataSet from '../src/DataSet.js'
@@ -30,6 +22,12 @@ export default class ErosionModel extends FloodModel {
       this.patches.ask(p => {
         p.hp = 100
         p.sediment = 0
+        if(p.x > 0 && p.y > 0){
+          p.floodDepth = 15
+          p.type = this.floodWaterType
+          p.setBreed(this.waters)
+          this.redraw(p)
+        }
       })
     }
 
@@ -104,14 +102,14 @@ export default class ErosionModel extends FloodModel {
                 p.elevation -= 1
                 this.redraw(p)
                 found.elevation +=1
-                found.graphElev = this.rockGraphic(found.elevation)
+                this.redraw(found)
               }
               //rainwater erosion always moves just to the next immediate tile
               if (found.rainDepth >= 100){
                 found.rainDepth -= 100
                 found.floodDepth += 1
                 found.type = this.floodWaterType
-                found.graphElev = this.waterGraphic(p.elevation, p.floodDepth)
+                this.redraw(found)
               }
             }
 
@@ -130,7 +128,7 @@ export default class ErosionModel extends FloodModel {
               if (found.type != this.floodWaterType){
                 found.type = this.floodWaterType
                 found.setBreed(this.waters)
-                found.graphElev = this.waterGraphic(found.elevation, found.floodDepth)
+                this.redraw(found)
               }
               //If not carrying sediment, cause erosion and pick some up
               if (p.sediment < p.floodDepth){

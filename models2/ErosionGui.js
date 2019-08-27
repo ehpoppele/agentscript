@@ -1,12 +1,15 @@
+//run file for erosion model; Eli Poppele
+//very similar to flood gui model; similar
+//display and run methods
 import World from '../src/World.js'
 import Color from '../src/Color.js'
 import ColorMap from '../src/ColorMap.js'
 import Animator from '../src/Animator.js'
 import GUI from '../src/GUI.js'
 import TwoView from '../src/TwoView.js'
-import FloodModel from '../models/ErosionModel.js'
+import ErosionModel from '../models/ErosionTest.js'
 import util from '../src/util.js'
-util.toWindow({ Color, ColorMap, Animator, GUI, TwoView, FloodModel, util })
+util.toWindow({ Color, ColorMap, Animator, GUI, TwoView, ErosionModel, util })
 
 //gui template and defaults
 const template = {
@@ -18,7 +21,7 @@ const template = {
 }
 const controls = new GUI(template).target
 
-class FloodModelCtrl extends FloodModel {
+class ErosionModelCtrl extends ErosionModel {
     step() {
         this.rainfall = controls.rainfallRate
         this.edgeRunoff = controls.edgeRunoff
@@ -45,14 +48,14 @@ class FloodModelCtrl extends FloodModel {
   //patch color array
   const patchPixels = {
       rock: [1, 0.66, 0.33],
-      rainWater: [1, 0.66, 0.33],
+      rainWater: [1, 0.66, 0.63],
       floodWater: [0, 0.5, 1],
   }
 
   Object.assign(params, util.parseQueryString())
   console.log(params.test)
   const world = World.defaultWorld((Math.floor(params.worldSize/2) - 1))
-  const model = new FloodModelCtrl(world)
+  const model = new ErosionModelCtrl(world)
 
   //assign parameters after loading from url
   model.worldSize = params.worldSize
@@ -70,7 +73,7 @@ class FloodModelCtrl extends FloodModel {
     console.log('startup done')
   }
 
-  class FloodView extends TwoView {
+  class ErosionView extends TwoView {
       initPatches() {
           this.createPatchPixels(i => Color.randomGrayPixel(0, 100))
       }
@@ -87,7 +90,7 @@ class FloodModelCtrl extends FloodModel {
           this.draws++
       }
   }
-  const view = new FloodView('modelDiv', model.world, {
+  const view = new ErosionView('modelDiv', model.world, {
       useSprites: true,
       patchSize: controls.patchSize,
   })
